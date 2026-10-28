@@ -14,7 +14,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 可选签名：仓库 Secrets 配置了 SHELL_KEYSTORE_BASE64 等四项时产出已签名 release
     env:
       SHELL_KEYSTORE_BASE64: ${{ secrets.SHELL_KEYSTORE_BASE64 }}
       SHELL_KEYSTORE_PASSWORD: ${{ secrets.SHELL_KEYSTORE_PASSWORD }}
@@ -29,8 +28,6 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Gradle 版本必须与根 build.gradle 里的 AGP 匹配：AGP 8.9 要求
-      # Gradle 8.11.1 及以上。这两处是一对，改一处不改另一处必然失败。
       - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.11.1"
@@ -38,27 +35,30 @@ jobs:
       - name: Decode keystore (optional)
         if: ${{ env.SHELL_KEYSTORE_BASE64 != '' }}
         run: |
-          echo "$SHELL_KEYSTORE_BASE64" | base64 -d > /tmp/shell.keystore
+          printf '%s' "$SHELL_KEYSTORE_BASE64" | tr -d ' \t\r\n' | base64 -d > /tmp/shell.keystore
           echo "SHELL_KEYSTORE_FILE=/tmp/shell.keystore" >> "$GITHUB_ENV"
 
-      # ===== 诊断步骤：验证密码能否打开解码出的密钥库，并打印指纹 =====
+      # 自动去掉密码 Secret 里可能混入的空格/换行/回车
+      - name: Normalize password secrets
+        if: ${{ env.SHELL_KEYSTORE_FILE != '' }}
+        run: |
+          CLEAN_STORE=$(printf '%s' "$SHELL_KEYSTORE_PASSWORD" | tr -d ' \t\r\n')
+          CLEAN_KEY=$(printf '%s' "$SHELL_KEY_PASSWORD" | tr -d ' \t\r\n')
+          echo "SHELL_KEYSTORE_PASSWORD=$CLEAN_STORE" >> "$GITHUB_ENV"
+          echo "SHELL_KEY_PASSWORD=$CLEAN_KEY" >> "$GITHUB_ENV"
+
       - name: Verify keystore (diagnose)
         if: ${{ env.SHELL_KEYSTORE_FILE != '' }}
         run: |
           echo "== 1. 密钥库文件大小 =="
           wc -c /tmp/shell.keystore
-          echo "== 2. 用 SHELL_KEYSTORE_PASSWORD 尝试打开 =="
+          echo "== 2. 用清洗后的密码尝试打开 =="
           if openssl pkcs12 -info -in /tmp/shell.keystore -passin "pass:$SHELL_KEYSTORE_PASSWORD" -noout 2>/tmp/ks-err.txt; then
-            echo "✅ 密码正确，能打开密钥库"
+            echo "OK: 密码正确，能打开密钥库"
           else
-            echo "❌ 打不开！openssl 错误信息："
+            echo "FAIL: 打不开！openssl 错误信息："
             cat /tmp/ks-err.txt
           fi
-          echo "== 3. 证书指纹（应为 6C:78:B3:64 开头 = 新密钥库） =="
-          openssl pkcs12 -in /tmp/shell.keystore -passin "pass:$SHELL_KEYSTORE_PASSWORD" -nokeys -clcerts -nodes 2>/dev/null | openssl x509 -noout -fingerprint -sha256 || echo "（打不开所以取不到指纹）"
-          echo "== 4. 别名检查（应列出 floatshell） =="
-          openssl pkcs12 -in /tmp/shell.keystore -passin "pass:$SHELL_KEYSTORE_PASSWORD" -nokeys -info 2>/dev/null | grep -i friendly || echo "（打不开所以取不到别名）"
-      # ===== 诊断步骤结束 =====
 
       - name: Build APKs
         run: gradle -p android-shell assembleDebug assembleRelease
