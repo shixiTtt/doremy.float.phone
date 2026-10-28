@@ -38,7 +38,6 @@ jobs:
           printf '%s' "$SHELL_KEYSTORE_BASE64" | tr -d ' \t\r\n' | base64 -d > /tmp/shell.keystore
           echo "SHELL_KEYSTORE_FILE=/tmp/shell.keystore" >> "$GITHUB_ENV"
 
-      # 自动去掉密码 Secret 里可能混入的空格/换行/回车
       - name: Normalize password secrets
         if: ${{ env.SHELL_KEYSTORE_FILE != '' }}
         run: |
@@ -50,14 +49,21 @@ jobs:
       - name: Verify keystore (diagnose)
         if: ${{ env.SHELL_KEYSTORE_FILE != '' }}
         run: |
-          echo "== 1. 密钥库文件大小 =="
+          echo "== 1. 文件指纹 =="
           wc -c /tmp/shell.keystore
-          echo "== 2. 用清洗后的密码尝试打开 =="
-          if openssl pkcs12 -info -in /tmp/shell.keystore -passin "pass:$SHELL_KEYSTORE_PASSWORD" -noout 2>/tmp/ks-err.txt; then
-            echo "OK: 密码正确，能打开密钥库"
+          sha256sum /tmp/shell.keystore
+          echo "    (新密钥库应为 c6c0b4061d33d951078393ed2477e1a668854ad8f492df789998ea4b0e3f6978)"
+          echo "== 2. 测试 A：干净密码 =="
+          if openssl pkcs12 -info -in /tmp/shell.keystore -passin "pass:$SHELL_KEYSTORE_PASSWORD" -noout 2>/dev/null; then
+            echo "OK-A: 干净密码能打开"
           else
-            echo "FAIL: 打不开！openssl 错误信息："
-            cat /tmp/ks-err.txt
+            echo "FAIL-A: 干净密码打不开"
+          fi
+          echo "== 3. 测试 B：密码+回车符（判断是否旧密钥库） =="
+          if openssl pkcs12 -info -in /tmp/shell.keystore -passin "pass:$SHELL_KEYSTORE_PASSWORD"$'\r' -noout 2>/dev/null; then
+            echo "OK-B: 密码+回车符能打开 → 这是旧密钥库，Base64 Secret 是旧的"
+          else
+            echo "FAIL-B: 密码+回车符也打不开"
           fi
 
       - name: Build APKs
