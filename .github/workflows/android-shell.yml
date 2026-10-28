@@ -41,6 +41,25 @@ jobs:
           echo "$SHELL_KEYSTORE_BASE64" | base64 -d > /tmp/shell.keystore
           echo "SHELL_KEYSTORE_FILE=/tmp/shell.keystore" >> "$GITHUB_ENV"
 
+      # ===== 诊断步骤：验证密码能否打开解码出的密钥库，并打印指纹 =====
+      - name: Verify keystore (diagnose)
+        if: ${{ env.SHELL_KEYSTORE_FILE != '' }}
+        run: |
+          echo "== 1. 密钥库文件大小 =="
+          wc -c /tmp/shell.keystore
+          echo "== 2. 用 SHELL_KEYSTORE_PASSWORD 尝试打开 =="
+          if openssl pkcs12 -info -in /tmp/shell.keystore -passin "pass:$SHELL_KEYSTORE_PASSWORD" -noout 2>/tmp/ks-err.txt; then
+            echo "✅ 密码正确，能打开密钥库"
+          else
+            echo "❌ 打不开！openssl 错误信息："
+            cat /tmp/ks-err.txt
+          fi
+          echo "== 3. 证书指纹（应为 6C:78:B3:64 开头 = 新密钥库） =="
+          openssl pkcs12 -in /tmp/shell.keystore -passin "pass:$SHELL_KEYSTORE_PASSWORD" -nokeys -clcerts -nodes 2>/dev/null | openssl x509 -noout -fingerprint -sha256 || echo "（打不开所以取不到指纹）"
+          echo "== 4. 别名检查（应列出 floatshell） =="
+          openssl pkcs12 -in /tmp/shell.keystore -passin "pass:$SHELL_KEYSTORE_PASSWORD" -nokeys -info 2>/dev/null | grep -i friendly || echo "（打不开所以取不到别名）"
+      # ===== 诊断步骤结束 =====
+
       - name: Build APKs
         run: gradle -p android-shell assembleDebug assembleRelease
 
