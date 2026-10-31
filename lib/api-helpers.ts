@@ -65,6 +65,15 @@ export function buildRequestHeaders(config: ApiConfig, baseUrl: string): Record<
         headers["X-Title"] = "AI Virtual Phone";
     }
 
+    // 用户自定义请求头（记忆网关 / 中转站常用）。放在最后，允许覆盖默认项。
+    if (config.customHeaders) {
+        for (const [rawKey, rawValue] of Object.entries(config.customHeaders)) {
+            const key = rawKey.trim();
+            if (!key) continue;
+            headers[key] = String(rawValue ?? "");
+        }
+    }
+
     return headers;
 }
 

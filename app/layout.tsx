@@ -6,6 +6,7 @@ import { ChatReasoningVisibilityController } from "@/components/chat-reasoning-v
 import { CSSImportEnhancer } from "@/components/css-import-enhancer";
 import { PWAManifestInjector } from "@/components/pwa-manifest-injector";
 import { PWARegistrar } from "@/components/pwa-registrar";
+import { buildPerfBootstrapScript } from "@/lib/device-performance";
 import "../styles/fonts.css";
 import "./globals.css";
 
@@ -32,8 +33,11 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <head>
+        {/* 首帧前先挂 data-perf，避免"先渲染毛玻璃、再降级"的闪动。
+            检测逻辑与 lib/device-performance.ts 保持一致。 */}
+        <script dangerouslySetInnerHTML={{ __html: buildPerfBootstrapScript() }} />
         <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
         <meta name="theme-color" content="#f8f7f2" />
         <link rel="apple-touch-icon" href="/icon-192.png" />

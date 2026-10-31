@@ -1,0 +1,56 @@
+/* ═══════════════════════════════════════════
+   低配流畅模式（html[data-perf="low"]）
+   由 lib/device-performance.ts 在首帧前挂到 <html>。
+   目标：在安卓 WebView / 华为 HarmonyOS 上明显降低 GPU 与重绘开销。
+
+   为什么遮罩能去掉：全站毛玻璃基本是「半透明背景 + blur」。去掉 blur 后
+   背景仍是半透明的，观感接近，但省掉了最贵的实时模糊与逐帧重采样。
+   ═══════════════════════════════════════════ */
+
+html[data-perf="low"] {
+  /* 全局模糊 token 归零：所有用 var(--ui-blur*) 的地方自动失效 */
+  --ui-blur: 0px;
+  --ui-blur-light: 0px;
+  --ui-blur-heavy: 0px;
+  --ui-blur-icon: 0px;
+  --ui-saturate: 100%;
+  scroll-behavior: auto;
+}
+
+/* 1) 关闭所有 backdrop-filter —— WebView 上最大的滚动 / 动画卡顿源 */
+html[data-perf="low"] body,
+html[data-perf="low"] body *,
+html[data-perf="low"] body *::before,
+html[data-perf="low"] body *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* 2) 停止环境类循环动画（呼吸 / 漂浮 / 扫描 / 颗粒 / 光晕 / 光环等）。
+      只按类名关键词命中，一次性转场与加载转圈（spinner/loading/loader）不受影响。 */
+html[data-perf="low"] [class*="blob"],
+html[data-perf="low"] [class*="aurora"],
+html[data-perf="low"] [class*="breathe"],
+html[data-perf="low"] [class*="glow"],
+html[data-perf="low"] [class*="halo"],
+html[data-perf="low"] [class*="drift"],
+html[data-perf="low"] [class*="sparkle"],
+html[data-perf="low"] [class*="scanline"],
+html[data-perf="low"] [class*="grain"],
+html[data-perf="low"] [class*="shimmer"],
+html[data-perf="low"] [class*="ambient"],
+html[data-perf="low"] [class*="floating"]::before,
+html[data-perf="low"] [class*="floating"]::after {
+  animation: none !important;
+}
+
+/* 3) 固定背景（background-attachment: fixed）在移动端会强制整屏重绘，统一改滚动 */
+html[data-perf="low"] body * {
+  background-attachment: scroll !important;
+}
+
+/* 4) 长列表滚动优化：聊天 / 列表容器避免不必要的合成层抖动 */
+html[data-perf="low"] .chat-message-list,
+html[data-perf="low"] .page-body {
+  overscroll-behavior: contain;
+}

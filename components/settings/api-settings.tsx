@@ -31,6 +31,27 @@ function getNativeToolProtocolLabel(config: ApiConfig): string {
     return "OpenAI-compatible";
 }
 
+/** 把「每行 Key: Value」文本转成请求头对象；空文本返回 undefined。 */
+function headersTextToObject(text: string): Record<string, string> | undefined {
+    const headers: Record<string, string> = {};
+    for (const rawLine of text.split("\n")) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith("#")) continue;
+        const separator = line.indexOf(":");
+        if (separator <= 0) continue;
+        const key = line.slice(0, separator).trim();
+        const value = line.slice(separator + 1).trim();
+        if (key) headers[key] = value;
+    }
+    return Object.keys(headers).length > 0 ? headers : undefined;
+}
+
+/** 请求头对象 → 可编辑文本。 */
+function headersObjectToText(headers?: Record<string, string>): string {
+    if (!headers) return "";
+    return Object.entries(headers).map(([key, value]) => `${key}: ${value}`).join("\n");
+}
+
 export function ApiSettings() {
     const { setSubpageRightAction } = useContext(SettingsContext);
     const [configs, setConfigs] = useState<ApiConfig[]>([]);
@@ -38,6 +59,8 @@ export function ApiSettings() {
     const [isNewConfig, setIsNewConfig] = useState(false);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
+    // 自定义请求头的编辑草稿：保留原始文本（含换行），避免边输边格式化把换行吃掉。
+    const [headerDrafts, setHeaderDrafts] = useState<Record<string, string>>({});
 
     // Testing and Fetching states
     const [isFetching, setIsFetching] = useState<Record<string, boolean>>({});
@@ -133,6 +156,12 @@ export function ApiSettings() {
                 : modelsUrl;
             const headers: Record<string, string> = { "Content-Type": "application/json" };
             if (!isGoogleNative) headers["Authorization"] = `Bearer ${config.apiKey}`;
+            // 与聊天请求保持一致：模型列表也带上自定义请求头（记忆网关需要）。
+            if (config.customHeaders) {
+                for (const [key, value] of Object.entries(config.customHeaders)) {
+                    if (key.trim()) headers[key.trim()] = String(value ?? "");
+                }
+            }
 
             const response = await fetch(url, { method: "GET", headers });
 
@@ -358,6 +387,25 @@ export function ApiSettings() {
                                                 onChange={(e) => updateConfig(config.id, { apiKey: e.target.value })}
                                                 placeholder="sk-..."
                                             />
+                                        </div>
+
+                                        <div className="flex flex-col gap-1">
+                                            <label className="menu-desc ml-1">自定义请求头（可选，每行 Key: Value）</label>
+                                            <textarea
+                                                value={headerDrafts[config.id] ?? headersObjectToText(config.customHeaders)}
+                                                onChange={(e) => {
+                                                    const text = e.target.value;
+                                                    setHeaderDrafts(prev => ({ ...prev, [config.id]: text }));
+                                                    updateConfig(config.id, { customHeaders: headersTextToObject(text) });
+                                                }}
+                                                placeholder={"X-Gateway-Key: 你的记忆网关密钥\nX-Custom-Header: value"}
+                                                spellCheck={false}
+                                                className="ui-input font-mono"
+                                                style={{ minHeight: 64, fontSize: 12, lineHeight: 1.5, resize: "vertical" }}
+                                            />
+                                            <span className="menu-desc ml-1">
+                                                给记忆网关 / 中转站这类需要额外请求头的服务用，会附加到每次聊天请求。
+                                            </span>
                                         </div>
 
                                         <div className="flex flex-col gap-1">

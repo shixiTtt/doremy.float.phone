@@ -153,6 +153,8 @@ export type ApiConfig = {
     enableImageRecognition: boolean;
     enableImageGeneration: boolean;
     preventEmptyGenerateRambling?: boolean;
+    /** 附加到每次聊天请求的自定义请求头（如记忆网关的 X-Gateway-Key）。 */
+    customHeaders?: Record<string, string>;
 };
 
 // --- VoiceApiConfig (migrated from voice-settings.tsx) ---

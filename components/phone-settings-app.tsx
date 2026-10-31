@@ -34,6 +34,7 @@ import { GlassIcon } from "./ui/glass-icon";
 import { Toggle } from "./ui/form";
 import { loadChatAppSettings, saveChatAppSettings } from "@/lib/chat-storage";
 import { loadKeepAlive, saveKeepAlive } from "@/lib/weixin-storage";
+import { applyPerfLowMode, resolvePerfTier } from "@/lib/device-performance";
 import { BINDING_ACCENTS, CONTENT_APP_ACCENTS } from "@/lib/ui-accent-colors";
 
 export const SettingsContext = createContext<{
@@ -133,6 +134,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     const [floatingDockEnabled, setFloatingDockEnabled] = useState(false);
     const [floatingDockSheetOpen, setFloatingDockSheetOpen] = useState(false);
     const [keepAlive, setKeepAlive] = useState(false);
+    // 低配流畅模式：关闭毛玻璃与循环动画，缓解安卓 WebView / 华为设备卡顿
+    const [perfLow, setPerfLow] = useState(false);
     // 角色电脑：施工中弹窗（返回 / 仍要看看）
     const pageBodyRef = useRef<HTMLDivElement | null>(null);
 
@@ -269,6 +272,14 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         // use-weixin-bridge 监听这个事件来起停保活（与微信 Bot 的启用状态无关）
         window.dispatchEvent(new CustomEvent("weixin-config-changed"));
         onNotice(next ? "已开启后台保活" : "已关闭后台保活");
+    }, [onNotice]);
+
+    const handlePerfLowChange = useCallback((next: boolean) => {
+        setPerfLow(next);
+        applyPerfLowMode(next);
+        onNotice(next
+            ? "已开启低配流畅模式（关闭毛玻璃与循环动画）"
+            : "已关闭低配流畅模式（恢复高质量特效）");
     }, [onNotice]);
 
     const imageGenerationItem = SETTINGS_MENU.find(i => i.id === "imageGeneration")!;
@@ -441,6 +452,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         setQuickActionEnabled(settings.quickActionEnabled === true);
         setFloatingDockEnabled(settings.floatingDockEnabled === true);
         setKeepAlive(loadKeepAlive());
+        setPerfLow(resolvePerfTier() === "low");
     }, []);
 
     // Listen for mascot navigation mode (e.g. jump to worldbook/regex tab)
@@ -547,6 +559,16 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                     <div className="card-featured-desc">切到后台时尽量保持网页运行，主动消息与轮询不中断</div>
                                 </div>
                                 <Toggle checked={keepAlive} onChange={handleKeepAliveChange} className="settings-toggle-control" />
+                            </div>
+                            <div className="app-card card-featured settings-toggle-card">
+                                <span className="card-icon card-icon-glass">
+                                    <Zap size={20} strokeWidth={1.8} />
+                                </span>
+                                <div className="card-featured-body">
+                                    <div className="card-featured-label">低配流畅模式</div>
+                                    <div className="card-featured-desc">关闭毛玻璃与循环动画，减少卡顿和发热（手机 / 华为设备建议开启）</div>
+                                </div>
+                                <Toggle checked={perfLow} onChange={handlePerfLowChange} className="settings-toggle-control" />
                             </div>
                         </div>
                         {isAdmin ? (

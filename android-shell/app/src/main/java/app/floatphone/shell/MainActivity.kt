@@ -20,6 +20,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Base64
+import android.view.View
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import okhttp3.OkHttpClient
@@ -284,8 +285,20 @@ class MainActivity : AppCompatActivity() {
             databaseEnabled = true
             mediaPlaybackRequiresUserGesture = false
             allowFileAccess = false
+            // 手机壳只做「App 全屏浏览」，不需要双指缩放：禁用后可少一层
+            // 缩放手势处理，滚动更跟手，也避免误触把界面放大。
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
             userAgentString = "$userAgentString FloatShell/$VERSION"
         }
+        // 去掉系统 overscroll 回弹光晕与滚动条绘制：在国产 ROM 上这两项会在
+        // 每次滑动时额外触发一次绘制，是长列表「拖影、掉帧」的常见来源。
+        webView.overScrollMode = View.OVER_SCROLL_NEVER
+        webView.isVerticalScrollBarEnabled = false
+        webView.isHorizontalScrollBarEnabled = false
+        // 用页面主题底色打底，避免首帧的白屏闪烁与白底重绘。
+        webView.setBackgroundColor(0xFFF8F7F2.toInt())
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
 
