@@ -144,6 +144,7 @@ import { startWeixinCloudRealtimeSync } from "@/lib/weixin-cloud-sync";
 import { WeixinSyncToast } from "@/components/weixin-sync-toast";
 import { sendBrowserNotification } from "@/lib/browser-notification";
 import { canSendShellNotification, sendShellNotification } from "@/lib/shell-notify";
+import { isMobileShell } from "@/lib/mobile-shell";
 import type { ChatSharePayload } from "@/lib/chat-share";
 import { completePendingMcpOAuthCallback } from "@/lib/tool-executor";
 import { LayoutGrid, LoaderCircle, RefreshCw } from "lucide-react";
@@ -941,7 +942,6 @@ function useAndroidCaretKeyboardLift() {
       return;
     }
 
-    const mobileMq = window.matchMedia("(max-width: 500px) and (hover: none) and (pointer: coarse)");
     const viewport = window.visualViewport;
     let focusedElement: HTMLElement | null = null;
     let raf = 0;
@@ -961,7 +961,7 @@ function useAndroidCaretKeyboardLift() {
     const update = () => {
       raf = 0;
       const element = focusedElement;
-      if (!element || document.activeElement !== element || !mobileMq.matches || !viewport) {
+      if (!element || document.activeElement !== element || !isMobileShell() || !viewport) {
         applyLift(0);
         return;
       }
@@ -1053,8 +1053,7 @@ function useAndroidNativeKeyboardViewport() {
     if (!/Android/i.test(navigator.userAgent)) {
       return;
     }
-    const mobileMq = window.matchMedia("(max-width: 500px) and (hover: none) and (pointer: coarse)");
-    if (!mobileMq.matches) {
+    if (!isMobileShell()) {
       return;
     }
 
@@ -1064,7 +1063,7 @@ function useAndroidNativeKeyboardViewport() {
 
     const apply = () => {
       raf = 0;
-      if (!mobileMq.matches) {
+      if (!isMobileShell()) {
         return;
       }
       // innerHeight 明显小于历史最大值 = 键盘已让浏览器原生压缩布局视口。

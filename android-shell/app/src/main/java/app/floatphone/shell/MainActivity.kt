@@ -290,6 +290,11 @@ class MainActivity : AppCompatActivity() {
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
+            // 关键：让 WebView 遵守页面 <meta viewport width=device-width>。
+            // 不设这两项时，部分 ROM 会用 ~980px 的桌面宽视口排版，页面被误判成
+            // 桌面环境 -> 显示"手机放在桌布上"的展示样式、还能左右平移。
+            useWideViewPort = true
+            loadWithOverviewMode = true
             userAgentString = "$userAgentString FloatShell/$VERSION"
         }
         // 去掉系统 overscroll 回弹光晕与滚动条绘制：在国产 ROM 上这两项会在

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { isMobileShell } from "@/lib/mobile-shell";
 import { shouldRequestPwaFullscreen } from "@/lib/pwa-display-mode";
 
 /**
@@ -13,9 +14,7 @@ import { shouldRequestPwaFullscreen } from "@/lib/pwa-display-mode";
  */
 export function AndroidFullscreen() {
   useEffect(() => {
-    const isMobile = window.matchMedia(
-      "(max-width: 500px) and (hover: none) and (pointer: coarse)"
-    ).matches;
+    const isMobile = isMobileShell();
     if (!isMobile) return;
 
     function tryFullscreen() {

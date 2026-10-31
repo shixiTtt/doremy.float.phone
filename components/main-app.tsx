@@ -19,6 +19,7 @@ import { getThemeAssetMap, readThemeProfile } from "@/lib/theme-storage";
 import { resolveActiveIconSkins, type ThemeProfile } from "@/lib/theme-types";
 import { hasPendingMcpOAuthCallback } from "@/lib/tool-executor";
 import { shouldRequestPwaFullscreen } from "@/lib/pwa-display-mode";
+import { isMobileShell } from "@/lib/mobile-shell";
 
 const TEXT = {
   loading: "\u52A0\u8F7D\u4E2D...",
@@ -270,7 +271,7 @@ export function MainApp() {
     })();
 
     // 安卓全屏兜底。是否请求全屏在每次点击时读取，设置切换后无需重载。
-    const isMobile = window.matchMedia("(max-width: 500px) and (hover: none) and (pointer: coarse)").matches;
+    const isMobile = isMobileShell();
     if (!isMobile) return () => {
       cancelled = true;
     };

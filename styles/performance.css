@@ -54,3 +54,17 @@ html[data-perf="low"] .chat-message-list,
 html[data-perf="low"] .page-body {
   overscroll-behavior: contain;
 }
+
+/* 5) 壁纸淡入 / 壳位移过渡会触发整屏重绘，低配下直接关掉 */
+html[data-perf="low"] .phone-wallpaper,
+html[data-perf="low"] .phone-shell-wrap {
+  transition: none !important;
+}
+
+/* 6) 装饰层常用 filter: blur()（不是 backdrop-filter），同样很贵 */
+html[data-perf="low"] [class*="backdrop"],
+html[data-perf="low"] [class*="frosted"],
+html[data-perf="low"] [class*="blur"] {
+  filter: none !important;
+}
+

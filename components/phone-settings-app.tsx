@@ -35,6 +35,7 @@ import { Toggle } from "./ui/form";
 import { loadChatAppSettings, saveChatAppSettings } from "@/lib/chat-storage";
 import { loadKeepAlive, saveKeepAlive } from "@/lib/weixin-storage";
 import { applyPerfLowMode, resolvePerfTier } from "@/lib/device-performance";
+import { readShellModeOverride, writeShellModeOverride } from "@/lib/mobile-shell";
 import { BINDING_ACCENTS, CONTENT_APP_ACCENTS } from "@/lib/ui-accent-colors";
 
 export const SettingsContext = createContext<{
@@ -136,6 +137,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     const [keepAlive, setKeepAlive] = useState(false);
     // 低配流畅模式：关闭毛玻璃与循环动画，缓解安卓 WebView / 华为设备卡顿
     const [perfLow, setPerfLow] = useState(false);
+    // 强制手机全屏：自动判定仍显示"手机放在桌布上"时的兜底开关
+    const [forceMobileShell, setForceMobileShell] = useState(false);
     // 角色电脑：施工中弹窗（返回 / 仍要看看）
     const pageBodyRef = useRef<HTMLDivElement | null>(null);
 
@@ -280,6 +283,14 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         onNotice(next
             ? "已开启低配流畅模式（关闭毛玻璃与循环动画）"
             : "已关闭低配流畅模式（恢复高质量特效）");
+    }, [onNotice]);
+
+    const handleForceMobileShellChange = useCallback((next: boolean) => {
+        setForceMobileShell(next);
+        writeShellModeOverride(next ? "phone" : "auto");
+        onNotice(next ? "已强制手机全屏，正在刷新…" : "已恢复自动布局，正在刷新…");
+        // 刷新一次让首帧判定重新执行，避免只改了一半样式
+        window.setTimeout(() => window.location.reload(), 350);
     }, [onNotice]);
 
     const imageGenerationItem = SETTINGS_MENU.find(i => i.id === "imageGeneration")!;
@@ -453,6 +464,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         setFloatingDockEnabled(settings.floatingDockEnabled === true);
         setKeepAlive(loadKeepAlive());
         setPerfLow(resolvePerfTier() === "low");
+        setForceMobileShell(readShellModeOverride() === "phone");
     }, []);
 
     // Listen for mascot navigation mode (e.g. jump to worldbook/regex tab)
@@ -569,6 +581,16 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                     <div className="card-featured-desc">关闭毛玻璃与循环动画，减少卡顿和发热（手机 / 华为设备建议开启）</div>
                                 </div>
                                 <Toggle checked={perfLow} onChange={handlePerfLowChange} className="settings-toggle-control" />
+                            </div>
+                            <div className="app-card card-featured settings-toggle-card">
+                                <span className="card-icon card-icon-glass">
+                                    <LayoutTemplate size={20} strokeWidth={1.8} />
+                                </span>
+                                <div className="card-featured-body">
+                                    <div className="card-featured-label">强制手机全屏</div>
+                                    <div className="card-featured-desc">仍显示"手机放在桌布上"、要左右滑动才能看到边缘时打开；会自动刷新</div>
+                                </div>
+                                <Toggle checked={forceMobileShell} onChange={handleForceMobileShellChange} className="settings-toggle-control" />
                             </div>
                         </div>
                         {isAdmin ? (
